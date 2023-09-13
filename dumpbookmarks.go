@@ -1,17 +1,5 @@
 package main
 
-/*
-  This code uses the struct unmarshalling approach to parse the JSON.
-  Note that originally I used the more generic interface parsing approach.
-  For example:
-	var result map[string]interface{}
-	err = json.Unmarshal([]byte(bytes), &result)
-	// For grabbing string -> object
-	roots := result["roots"].(map[string]interface{})
-	// For grabbing string -> []
-	children := node["children"].([]interface{})
-*/
-
 import (
 	"encoding/json"
 	"flag"
@@ -20,6 +8,11 @@ import (
 	"os"
 	"path/filepath"
 )
+
+type params struct {
+	descend  bool
+	filepath string
+}
 
 type Bookmarks struct {
 	Name     string
@@ -62,19 +55,28 @@ func dump(bookmarks *Bookmarks, descend bool) {
 	}
 }
 
-func main() {
+func parseFlags() params {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
 		bail("Unable to determine user's home directory:", err, 1)
 	}
+
 	defaultpath := filepath.Join(homedir, ".config/google-chrome/Default/Bookmarks")
 
 	descend := flag.Bool("descend", true, "descend to subfolders")
-	filename := flag.String("filename", defaultpath, "name of chrome bookmarks file to process")
+	filepath := flag.String("filename", defaultpath, "name of chrome bookmarks file to process")
 
 	flag.Parse()
 
-	file, err := os.Open(*filename)
+	return params{
+		descend:  *descend,
+		filepath: *filepath,
+	}
+}
+
+func main() {
+	params := parseFlags()
+	file, err := os.Open(params.filepath)
 
 	if err != nil {
 		bail("Error opening bookmarks file:", err, 1)
@@ -107,6 +109,6 @@ func main() {
 	if bookmarks == nil {
 		bail("Requested bookmarks not found.", nil, 1)
 	} else {
-		dump(bookmarks, *descend)
+		dump(bookmarks, params.descend)
 	}
 }
