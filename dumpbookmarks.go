@@ -1,10 +1,25 @@
+/*
+Program to dump chrome bookmarks to stdout. Without arguments:
+
+$ go run dumpbookmarks.go
+
+and all bookmarks will be dumped. To specify only a certain subtree
+of bookmarks, provide the folder names down to that path, for example:
+
+$ go run dumpbookmarks.go recipes italian
+
+This will dump the bookmarks starting at the recipes -> italian folder.
+To only dump bookmarks at the specified level, without descending into
+subfolders, pass the descend flag.
+
+$ go run dumpbookmarks.go -descend=false
+*/
 package main
 
 import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -14,15 +29,15 @@ type params struct {
 	filepath string
 }
 
-type Bookmarks struct {
+type Bookmark struct {
 	Name     string
 	Type     string
 	Url      string
-	Children []Bookmarks
+	Children []Bookmark
 }
 
-type BookmarksFile struct {
-	Roots map[string]Bookmarks
+type Bookmarks struct {
+	Roots map[string]Bookmark
 }
 
 func bail(msg string, err error, exitCode int) {
@@ -33,20 +48,20 @@ func bail(msg string, err error, exitCode int) {
 	os.Exit(exitCode)
 }
 
-func find(bookmarks Bookmarks, args []string) *Bookmarks {
+func find(bookmark *Bookmark, args []string) *Bookmark {
 	if len(args) == 0 {
-		return &bookmarks
+		return bookmark
 	}
-	for _, child := range bookmarks.Children {
+	for _, child := range bookmark.Children {
 		if child.Name == args[0] {
-			return find(child, args[1:])
+			return find(&child, args[1:])
 		}
 	}
 	return nil
 }
 
-func dump(bookmarks *Bookmarks, descend bool) {
-	for _, child := range bookmarks.Children {
+func dump(bookmark *Bookmark, descend bool) {
+	for _, child := range bookmark.Children {
 		if child.Type == "url" {
 			fmt.Println(child.Url)
 		} else if descend {
@@ -76,39 +91,31 @@ func parseFlags() params {
 
 func main() {
 	params := parseFlags()
-	file, err := os.Open(params.filepath)
 
-	if err != nil {
-		bail("Error opening bookmarks file:", err, 1)
-	}
-
-	defer file.Close()
-
-	bytes, err := ioutil.ReadAll(file)
-
+	bytes, err := os.ReadFile(params.filepath)
 	if err != nil {
 		bail("Error reading bookmarks file:", err, 1)
 	}
 
-	var bookmarksFile BookmarksFile
-	err = json.Unmarshal([]byte(bytes), &bookmarksFile)
+	var bookmarksFile Bookmarks
+	err = json.Unmarshal(bytes, &bookmarksFile)
 
 	if err != nil {
 		bail("Error unmarshalling bookmarks file, has the schema changed?:", err, 1)
 	}
 
 	bookmarkBar := bookmarksFile.Roots["bookmark_bar"]
+	bookmark := &bookmarkBar
 
-	bookmarks := &bookmarkBar
 	args := flag.Args()
 	if len(args) > 0 {
 		// If they specified a subtree, start there.
-		bookmarks = find(bookmarkBar, args)
+		bookmark = find(bookmark, args)
 	}
 
-	if bookmarks == nil {
+	if bookmark == nil {
 		bail("Requested bookmarks not found.", nil, 1)
 	} else {
-		dump(bookmarks, params.descend)
+		dump(bookmark, params.descend)
 	}
 }
