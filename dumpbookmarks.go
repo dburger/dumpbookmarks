@@ -24,11 +24,13 @@ import (
 	"path/filepath"
 )
 
+// params holds the parsed command line parameters.
 type params struct {
 	descend  bool
 	filepath string
 }
 
+// Bookmark is a chrome bookmark or folder with an array of child Bookmark.
 type Bookmark struct {
 	Name     string
 	Type     string
@@ -36,10 +38,12 @@ type Bookmark struct {
 	Children []Bookmark
 }
 
+// Bookmarks holds the entire bookmarks data structure.
 type Bookmarks struct {
 	Roots map[string]Bookmark
 }
 
+// bail is used to print an error to stderr and exit the program.
 func bail(msg string, err error, exitCode int) {
 	println(msg)
 	if err != nil {
@@ -48,6 +52,8 @@ func bail(msg string, err error, exitCode int) {
 	os.Exit(exitCode)
 }
 
+// find attempts to find the bookmark starting point indicated in args.
+// Each element of args walks the bookmarks tree down to the intended node.
 func find(bookmark *Bookmark, args []string) *Bookmark {
 	if len(args) == 0 {
 		return bookmark
@@ -60,6 +66,8 @@ func find(bookmark *Bookmark, args []string) *Bookmark {
 	return nil
 }
 
+// dump dumps bookmarks to stdout. descend determines whether the code
+// recurses into child nodes.
 func dump(bookmark *Bookmark, descend bool) {
 	for _, child := range bookmark.Children {
 		if child.Type == "url" {
@@ -70,6 +78,7 @@ func dump(bookmark *Bookmark, descend bool) {
 	}
 }
 
+// parseFlags parses command line arguments and returns params.
 func parseFlags() params {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
