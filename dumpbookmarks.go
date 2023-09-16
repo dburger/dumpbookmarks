@@ -26,8 +26,9 @@ import (
 
 // params holds the parsed command line parameters.
 type params struct {
-	descend  bool
-	filepath string
+	descend      bool
+	filepath     string
+	bookmarkPath []string
 }
 
 // Bookmark is a chrome bookmark or folder with an array of child Bookmark.
@@ -52,15 +53,15 @@ func bail(msg string, err error, exitCode int) {
 	os.Exit(exitCode)
 }
 
-// find attempts to find the bookmark starting point indicated in args.
-// Each element of args walks the bookmarks tree down to the intended node.
-func find(bookmark *Bookmark, args []string) *Bookmark {
-	if len(args) == 0 {
+// find attempts to find the bookmark starting point indicated in bookmarkPath.
+// Each element of bookmarkPath walks the bookmarks tree down to the intended node.
+func find(bookmark *Bookmark, bookmarkPath []string) *Bookmark {
+	if len(bookmarkPath) == 0 {
 		return bookmark
 	}
 	for _, child := range bookmark.Children {
-		if child.Name == args[0] {
-			return find(&child, args[1:])
+		if child.Name == bookmarkPath[0] {
+			return find(&child, bookmarkPath[1:])
 		}
 	}
 	return nil
@@ -93,8 +94,9 @@ func parseFlags() params {
 	flag.Parse()
 
 	return params{
-		descend:  *descend,
-		filepath: *filepath,
+		descend:      *descend,
+		filepath:     *filepath,
+		bookmarkPath: flag.Args(),
 	}
 }
 
@@ -116,10 +118,9 @@ func main() {
 	bookmarkBar := bookmarksFile.Roots["bookmark_bar"]
 	bookmark := &bookmarkBar
 
-	args := flag.Args()
-	if len(args) > 0 {
+	if len(params.bookmarkPath) > 0 {
 		// If they specified a subtree, start there.
-		bookmark = find(bookmark, args)
+		bookmark = find(bookmark, params.bookmarkPath)
 	}
 
 	if bookmark == nil {
