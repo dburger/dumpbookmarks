@@ -31,17 +31,17 @@ type params struct {
 	bookmarkPath []string
 }
 
-// Bookmark is a chrome bookmark or folder with an array of child Bookmark.
-type Bookmark struct {
+// bookmark is a chrome bookmark or folder with an array of child bookmark.
+type bookmark struct {
 	Name     string
 	Type     string
 	Url      string
-	Children []Bookmark
+	Children []bookmark
 }
 
-// Bookmarks holds the entire bookmarks data structure.
-type Bookmarks struct {
-	Roots map[string]Bookmark
+// bookmarks holds the entire bookmarks data structure.
+type bookmarks struct {
+	Roots map[string]bookmark
 }
 
 // bail is used to print an error to stderr and exit the program.
@@ -55,7 +55,7 @@ func bail(msg string, err error, exitCode int) {
 
 // find attempts to find the bookmark starting point indicated in bookmarkPath.
 // Each element of bookmarkPath walks the bookmarks tree down to the intended node.
-func find(bookmark *Bookmark, bookmarkPath []string) *Bookmark {
+func find(bookmark *bookmark, bookmarkPath []string) *bookmark {
 	if len(bookmarkPath) == 0 {
 		return bookmark
 	}
@@ -69,7 +69,7 @@ func find(bookmark *Bookmark, bookmarkPath []string) *Bookmark {
 
 // dump dumps bookmarks to stdout. descend determines whether the code
 // recurses into child nodes.
-func dump(bookmark *Bookmark, descend bool) {
+func dump(bookmark *bookmark, descend bool) {
 	for _, child := range bookmark.Children {
 		if child.Type == "url" {
 			fmt.Println(child.Url)
@@ -108,7 +108,7 @@ func main() {
 		bail("Error reading bookmarks file:", err, 1)
 	}
 
-	var bookmarksFile Bookmarks
+	var bookmarksFile bookmarks
 	err = json.Unmarshal(bytes, &bookmarksFile)
 
 	if err != nil {
