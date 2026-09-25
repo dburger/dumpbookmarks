@@ -38,6 +38,39 @@
       ],
       "name": "Bookmarks bar",
       "type": "folder"
+    },
+    "other": {
+      "children": [
+        {
+          "name": "Other Link",
+          "type": "url",
+          "url": "https://example.com/other"
+        },
+        {
+          "children": [
+            {
+              "name": "Lasagna",
+              "type": "url",
+              "url": "https://example.com/other-lasagna"
+            }
+          ],
+          "name": "Recipes",
+          "type": "folder"
+        }
+      ],
+      "name": "Other bookmarks",
+      "type": "folder"
+    },
+    "synced": {
+      "children": [
+        {
+          "name": "Mobile Link",
+          "type": "url",
+          "url": "https://example.com/mobile"
+        }
+      ],
+      "name": "Mobile bookmarks",
+      "type": "folder"
     }
   },
   "version": 1

@@ -29,6 +29,7 @@ import (
 type params struct {
 	descend      bool
 	filename     string
+	root         string
 	bookmarkPath []string
 }
 
@@ -125,12 +126,14 @@ func parseFlags() params {
 
 	descend := flag.Bool("descend", true, "descend to subfolders")
 	filename := flag.String("filename", defaultPath, "name of chrome bookmarks file to process")
+	root := flag.String("root", "bookmark_bar", "root bookmark folder (e.g. bookmark_bar, other, synced)")
 
 	flag.Parse()
 
 	return params{
 		descend:      *descend,
 		filename:     *filename,
+		root:         *root,
 		bookmarkPath: flag.Args(),
 	}
 }
@@ -150,11 +153,11 @@ func main() {
 		bail("Error unmarshalling bookmarks file, has the schema changed?", err, 1)
 	}
 
-	bookmarkBar, ok := bookmarksFile.Roots["bookmark_bar"]
+	rootBookmark, ok := bookmarksFile.Roots[params.root]
 	if !ok {
-		bail("No bookmark_bar found in bookmarks file", nil, 1)
+		bail(fmt.Sprintf("No %s found in bookmarks file", params.root), nil, 1)
 	}
-	bm := &bookmarkBar
+	bm := &rootBookmark
 
 	if len(params.bookmarkPath) > 0 {
 		// If they specified a subtree, start there.

@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-// loadTestBookmarks loads and unmarshals the test fixture from testdata/bookmarks.json.
-func loadTestBookmarks(t *testing.T) *bookmark {
+// loadTestBookmarksFile loads and unmarshals the full test fixture from testdata/bookmarks.json.
+func loadTestBookmarksFile(t *testing.T) bookmarks {
 	t.Helper()
 	data, err := os.ReadFile("testdata/bookmarks.json")
 	if err != nil {
@@ -22,6 +22,14 @@ func loadTestBookmarks(t *testing.T) *bookmark {
 	if err := json.Unmarshal(data, &bf); err != nil {
 		t.Fatalf("failed to unmarshal test fixture: %v", err)
 	}
+	return bf
+}
+
+// loadTestBookmarks loads and unmarshals the test fixture from testdata/bookmarks.json,
+// returning the default "bookmark_bar" root.
+func loadTestBookmarks(t *testing.T) *bookmark {
+	t.Helper()
+	bf := loadTestBookmarksFile(t)
 
 	bar, ok := bf.Roots["bookmark_bar"]
 	if !ok {
@@ -218,33 +226,79 @@ func TestDumpLeafURL(t *testing.T) {
 }
 
 func TestBookmarksJSONUnmarshal(t *testing.T) {
-	data, err := os.ReadFile("testdata/bookmarks.json")
-	if err != nil {
-		t.Fatalf("failed to read test fixture: %v", err)
-	}
+	bf := loadTestBookmarksFile(t)
 
-	var bf bookmarks
-	if err := json.Unmarshal(data, &bf); err != nil {
-		t.Fatalf("Unmarshal failed: %v", err)
-	}
-
+	// Check bookmark_bar
 	bar, ok := bf.Roots["bookmark_bar"]
 	if !ok {
 		t.Fatalf("missing 'bookmark_bar' in Roots")
 	}
-
 	if bar.Name != "Bookmarks bar" || bar.Type != "folder" {
 		t.Errorf("root = {Name: %q, Type: %q}; want {'Bookmarks bar', 'folder'}", bar.Name, bar.Type)
 	}
-
 	if len(bar.Children) != 3 {
 		t.Fatalf("bar.Children len = %d; want 3", len(bar.Children))
 	}
-
 	topLink := bar.Children[0]
 	if topLink.Name != "Top Link" || topLink.Type != "url" || topLink.URL != "https://example.com/top" {
 		t.Errorf("topLink = %+v; want Top Link url node", topLink)
 	}
+
+	// Check other root
+	other, ok := bf.Roots["other"]
+	if !ok {
+		t.Fatalf("missing 'other' in Roots")
+	}
+	if other.Name != "Other bookmarks" || other.Type != "folder" {
+		t.Errorf("other = {Name: %q, Type: %q}; want {'Other bookmarks', 'folder'}", other.Name, other.Type)
+	}
+	if len(other.Children) != 2 {
+		t.Fatalf("other.Children len = %d; want 2", len(other.Children))
+	}
+
+	// Check synced root
+	synced, ok := bf.Roots["synced"]
+	if !ok {
+		t.Fatalf("missing 'synced' in Roots")
+	}
+	if synced.Name != "Mobile bookmarks" || synced.Type != "folder" {
+		t.Errorf("synced = {Name: %q, Type: %q}; want {'Mobile bookmarks', 'folder'}", synced.Name, synced.Type)
+	}
+	if len(synced.Children) != 1 {
+		t.Fatalf("synced.Children len = %d; want 1", len(synced.Children))
+	}
+}
+
+func TestDumpNonDefaultRoots(t *testing.T) {
+	bf := loadTestBookmarksFile(t)
+
+	t.Run("dump other root disambiguates same-named folder", func(t *testing.T) {
+		other := bf.Roots["other"]
+		lasagna := find(&other, []string{"Recipes", "Lasagna"})
+		if lasagna == nil {
+			t.Fatal("failed to find 'Recipes' -> 'Lasagna' in other root")
+		}
+		if lasagna.URL != "https://example.com/other-lasagna" {
+			t.Errorf("lasagna URL = %q; want https://example.com/other-lasagna", lasagna.URL)
+		}
+
+		output := captureStdout(t, func() {
+			dump(lasagna, true)
+		})
+		if strings.TrimSpace(output) != "https://example.com/other-lasagna" {
+			t.Errorf("dump output = %q; want https://example.com/other-lasagna", output)
+		}
+	})
+
+	t.Run("dump synced root", func(t *testing.T) {
+		synced := bf.Roots["synced"]
+		output := captureStdout(t, func() {
+			dump(&synced, true)
+		})
+		if strings.TrimSpace(output) != "https://example.com/mobile" {
+			t.Errorf("dump output = %q; want https://example.com/mobile", output)
+		}
+	})
 }
 
 func TestDefaultBookmarksPath(t *testing.T) {
