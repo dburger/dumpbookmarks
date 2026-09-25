@@ -27,7 +27,7 @@ import (
 // params holds the parsed command line parameters.
 type params struct {
 	descend      bool
-	filepath     string
+	filename     string
 	bookmarkPath []string
 }
 
@@ -89,13 +89,13 @@ func parseFlags() params {
 	defaultpath := filepath.Join(homedir, ".config/google-chrome/Default/AccountBookmarks")
 
 	descend := flag.Bool("descend", true, "descend to subfolders")
-	filepath := flag.String("filename", defaultpath, "name of chrome bookmarks file to process")
+	filename := flag.String("filename", defaultpath, "name of chrome bookmarks file to process")
 
 	flag.Parse()
 
 	return params{
 		descend:      *descend,
-		filepath:     *filepath,
+		filename:     *filename,
 		bookmarkPath: flag.Args(),
 	}
 }
@@ -103,7 +103,7 @@ func parseFlags() params {
 func main() {
 	params := parseFlags()
 
-	bytes, err := os.ReadFile(params.filepath)
+	bytes, err := os.ReadFile(params.filename)
 	if err != nil {
 		bail("Error reading bookmarks file:", err, 1)
 	}
