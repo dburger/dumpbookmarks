@@ -86,7 +86,7 @@ func parseFlags() params {
 		bail("Unable to determine user's home directory:", err, 1)
 	}
 
-	defaultpath := filepath.Join(homedir, ".config/google-chrome/Default/Bookmarks")
+	defaultpath := filepath.Join(homedir, ".config/google-chrome/Default/AccountBookmarks")
 
 	descend := flag.Bool("descend", true, "descend to subfolders")
 	filepath := flag.String("filename", defaultpath, "name of chrome bookmarks file to process")
