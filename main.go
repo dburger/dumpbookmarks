@@ -72,6 +72,10 @@ func find(bookmark *bookmark, bookmarkPath []string) *bookmark {
 // dump dumps bookmarks to stdout. descend determines whether the code
 // recurses into child nodes.
 func dump(bookmark *bookmark, descend bool) {
+	if bookmark.Type == "url" {
+		fmt.Println(bookmark.URL)
+		return
+	}
 	for _, child := range bookmark.Children {
 		if child.Type == "url" {
 			fmt.Println(child.URL)
