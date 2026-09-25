@@ -10,45 +10,25 @@ import (
 	"testing"
 )
 
-func sampleBookmarks() *bookmark {
-	return &bookmark{
-		Name: "Bookmarks bar",
-		Type: "folder",
-		Children: []bookmark{
-			{
-				Name: "Top Link",
-				Type: "url",
-				URL:  "https://example.com/top",
-			},
-			{
-				Name: "Recipes",
-				Type: "folder",
-				Children: []bookmark{
-					{
-						Name: "Lasagna",
-						Type: "url",
-						URL:  "https://example.com/lasagna",
-					},
-					{
-						Name: "Desserts",
-						Type: "folder",
-						Children: []bookmark{
-							{
-								Name: "Tiramisu",
-								Type: "url",
-								URL:  "https://example.com/tiramisu",
-							},
-						},
-					},
-				},
-			},
-			{
-				Name:     "Empty Folder",
-				Type:     "folder",
-				Children: []bookmark{},
-			},
-		},
+// loadTestBookmarks loads and unmarshals the test fixture from testdata/bookmarks.json.
+func loadTestBookmarks(t *testing.T) *bookmark {
+	t.Helper()
+	data, err := os.ReadFile("testdata/bookmarks.json")
+	if err != nil {
+		t.Fatalf("failed to read test fixture: %v", err)
 	}
+
+	var bf bookmarks
+	if err := json.Unmarshal(data, &bf); err != nil {
+		t.Fatalf("failed to unmarshal test fixture: %v", err)
+	}
+
+	bar, ok := bf.Roots["bookmark_bar"]
+	if !ok {
+		t.Fatalf("test fixture missing bookmark_bar")
+	}
+
+	return &bar
 }
 
 // captureStdout redirects os.Stdout during the execution of f and returns the captured output.
@@ -76,7 +56,7 @@ func captureStdout(t *testing.T, f func()) string {
 }
 
 func TestFind(t *testing.T) {
-	root := sampleBookmarks()
+	root := loadTestBookmarks(t)
 
 	tests := []struct {
 		name     string
@@ -161,7 +141,7 @@ func TestFind(t *testing.T) {
 }
 
 func TestDump(t *testing.T) {
-	root := sampleBookmarks()
+	root := loadTestBookmarks(t)
 
 	t.Run("descend true dumps all subfolder URLs", func(t *testing.T) {
 		output := captureStdout(t, func() {
@@ -221,10 +201,10 @@ func TestDump(t *testing.T) {
 }
 
 func TestDumpLeafURL(t *testing.T) {
-	leaf := &bookmark{
-		Name: "Lasagna",
-		Type: "url",
-		URL:  "https://example.com/lasagna",
+	root := loadTestBookmarks(t)
+	leaf := find(root, []string{"Recipes", "Lasagna"})
+	if leaf == nil {
+		t.Fatal("failed to find leaf node 'Recipes' -> 'Lasagna'")
 	}
 
 	output := captureStdout(t, func() {
@@ -238,37 +218,13 @@ func TestDumpLeafURL(t *testing.T) {
 }
 
 func TestBookmarksJSONUnmarshal(t *testing.T) {
-	rawJSON := `{
-		"checksum": "abcdef0123456789",
-		"roots": {
-			"bookmark_bar": {
-				"name": "Bookmarks bar",
-				"type": "folder",
-				"children": [
-					{
-						"name": "Google",
-						"type": "url",
-						"url": "https://www.google.com"
-					},
-					{
-						"name": "Dev",
-						"type": "folder",
-						"children": [
-							{
-								"name": "Go",
-								"type": "url",
-								"url": "https://golang.org"
-							}
-						]
-					}
-				]
-			}
-		},
-		"version": 1
-	}`
+	data, err := os.ReadFile("testdata/bookmarks.json")
+	if err != nil {
+		t.Fatalf("failed to read test fixture: %v", err)
+	}
 
 	var bf bookmarks
-	if err := json.Unmarshal([]byte(rawJSON), &bf); err != nil {
+	if err := json.Unmarshal(data, &bf); err != nil {
 		t.Fatalf("Unmarshal failed: %v", err)
 	}
 
@@ -281,21 +237,13 @@ func TestBookmarksJSONUnmarshal(t *testing.T) {
 		t.Errorf("root = {Name: %q, Type: %q}; want {'Bookmarks bar', 'folder'}", bar.Name, bar.Type)
 	}
 
-	if len(bar.Children) != 2 {
-		t.Fatalf("bar.Children len = %d; want 2", len(bar.Children))
+	if len(bar.Children) != 3 {
+		t.Fatalf("bar.Children len = %d; want 3", len(bar.Children))
 	}
 
-	googleNode := bar.Children[0]
-	if googleNode.Name != "Google" || googleNode.Type != "url" || googleNode.URL != "https://www.google.com" {
-		t.Errorf("googleNode = %+v; want Google url node", googleNode)
-	}
-
-	devFolder := bar.Children[1]
-	if devFolder.Name != "Dev" || devFolder.Type != "folder" || len(devFolder.Children) != 1 {
-		t.Errorf("devFolder = %+v; want Dev folder with 1 child", devFolder)
-	}
-	if devFolder.Children[0].URL != "https://golang.org" {
-		t.Errorf("child URL = %q; want https://golang.org", devFolder.Children[0].URL)
+	topLink := bar.Children[0]
+	if topLink.Name != "Top Link" || topLink.Type != "url" || topLink.URL != "https://example.com/top" {
+		t.Errorf("topLink = %+v; want Top Link url node", topLink)
 	}
 }
 

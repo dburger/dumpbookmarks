@@ -1,0 +1,44 @@
+{
+  "checksum": "abcdef0123456789",
+  "roots": {
+    "bookmark_bar": {
+      "children": [
+        {
+          "name": "Top Link",
+          "type": "url",
+          "url": "https://example.com/top"
+        },
+        {
+          "children": [
+            {
+              "name": "Lasagna",
+              "type": "url",
+              "url": "https://example.com/lasagna"
+            },
+            {
+              "children": [
+                {
+                  "name": "Tiramisu",
+                  "type": "url",
+                  "url": "https://example.com/tiramisu"
+                }
+              ],
+              "name": "Desserts",
+              "type": "folder"
+            }
+          ],
+          "name": "Recipes",
+          "type": "folder"
+        },
+        {
+          "children": [],
+          "name": "Empty Folder",
+          "type": "folder"
+        }
+      ],
+      "name": "Bookmarks bar",
+      "type": "folder"
+    }
+  },
+  "version": 1
+}
