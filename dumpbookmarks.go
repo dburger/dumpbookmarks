@@ -46,9 +46,10 @@ type bookmarks struct {
 
 // bail is used to print an error to stderr and exit the program.
 func bail(msg string, err error, exitCode int) {
-	println(msg)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
+	} else {
+		fmt.Fprintln(os.Stderr, msg)
 	}
 	os.Exit(exitCode)
 }
@@ -83,7 +84,7 @@ func dump(bookmark *bookmark, descend bool) {
 func parseFlags() params {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
-		bail("Unable to determine user's home directory:", err, 1)
+		bail("Unable to determine user's home directory", err, 1)
 	}
 
 	defaultpath := filepath.Join(homedir, ".config/google-chrome/Default/AccountBookmarks")
@@ -105,14 +106,14 @@ func main() {
 
 	bytes, err := os.ReadFile(params.filename)
 	if err != nil {
-		bail("Error reading bookmarks file:", err, 1)
+		bail("Error reading bookmarks file", err, 1)
 	}
 
 	var bookmarksFile bookmarks
 	err = json.Unmarshal(bytes, &bookmarksFile)
 
 	if err != nil {
-		bail("Error unmarshalling bookmarks file, has the schema changed?:", err, 1)
+		bail("Error unmarshalling bookmarks file, has the schema changed?", err, 1)
 	}
 
 	bookmarkBar := bookmarksFile.Roots["bookmark_bar"]
