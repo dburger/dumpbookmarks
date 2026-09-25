@@ -1,6 +1,6 @@
 .PHONY: build buildl buildw runl runw clean
 
-SRC = $(wildcard *.go)  $(wildcard **/*.go)
+SRC = $(wildcard *.go)
 
 bin/dumpbookmarks: $(SRC)
 	GOOS=linux GOARCH=amd64 go build -o bin/dumpbookmarks
