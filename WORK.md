@@ -20,6 +20,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
    - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
    - [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
    - [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
+   - [Source File Renaming (`main.go`)](#source-file-renaming-maingo)
 
 ---
 
@@ -118,7 +119,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 ### Issue 11: Missing Automated Tests
 
 * **Problem:** The repository has no test files (`[no test files]`).
-* **Proposed Fix:** Add `dumpbookmarks_test.go` covering:
+* **Proposed Fix:** Add `main_test.go` covering:
   - Traversal with [`find`](file:///home/dburger/src/dumpbookmarks/main.go#L57-L67) for single and multi-level paths
   - Dumping individual URL leaf nodes
   - Behavior when `descend` is `true` vs `false`
@@ -152,3 +153,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 - **Resolution:**
   - Added `.PHONY: build buildl buildw runl runw clean` to ensure phony targets execute reliably regardless of filesystem state.
   - Simplified `SRC` from `$(wildcard *.go) $(wildcard **/*.go)` to `$(wildcard *.go)` since GNU Make's `wildcard` does not do recursive `**` expansion, and the project sources are in the root directory.
+
+### Source File Renaming (`main.go`)
+- **Status:** Completed (commit `d972c6f`)
+- **Resolution:** Renamed `dumpbookmarks.go` to `main.go` per Go conventions for standalone single-package executable applications, and updated documentation examples to use `go run .`.
