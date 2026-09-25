@@ -7,7 +7,6 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 ## Table of Contents
 1. [Functional Bugs & Logic Flaws](#1-functional-bugs--logic-flaws)
    - [Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted](#bug-2-chrome-bookmarks-in-other-and-synced-roots-are-omitted)
-   - [Bug 3: Silent Failure When `bookmark_bar` Is Absent](#bug-3-silent-failure-when-bookmark_bar-is-absent)
 2. [Completed Tasks](#2-completed-tasks)
    - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
    - [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
@@ -19,6 +18,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
    - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
    - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
    - [Bug 1: Leaf Bookmark URL Nodes Not Dumped](#bug-1-leaf-bookmark-url-nodes-not-dumped)
+   - [Bug 3: Silent Failure When `bookmark_bar` Is Absent](#bug-3-silent-failure-when-bookmark_bar-is-absent)
 
 ---
 
@@ -26,7 +26,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ### Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L151-L152)
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L153-L157)
 * **Problem:** Google Chrome partitions bookmarks into three primary roots:
   - `bookmark_bar` ("Bookmarks bar")
   - `other` ("Other bookmarks")
@@ -43,20 +43,6 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
       if r, ok := bookmarksFile.Roots[rootName]; ok {
           virtualRoot.Children = append(virtualRoot.Children, r)
       }
-  }
-  ```
-
----
-
-### Bug 3: Silent Failure When `bookmark_bar` Is Absent
-
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L151-L159)
-* **Problem:** In Go, accessing a missing map key (`bookmarksFile.Roots["bookmark_bar"]`) yields the zero-value [`bookmark`](file:///home/dburger/src/dumpbookmarks/main.go#L34-L40). Taking its address (`&bookmarkBar`) produces a non-nil pointer. When no arguments are supplied, the `if bm == nil` check passes, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L84) iterates over empty children, and the command exits 0 without indicating that the root was missing.
-* **Proposed Fix:** Check map existence:
-  ```go
-  bookmarkBar, ok := bookmarksFile.Roots["bookmark_bar"]
-  if !ok {
-      bail("No bookmark_bar found in bookmarks file", nil, 1)
   }
   ```
 
@@ -107,3 +93,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 ### Bug 1: Leaf Bookmark URL Nodes Not Dumped
 - **Status:** Completed (commit `c884d36`)
 - **Resolution:** Added an initial check in `dump()` for `bookmark.Type == "url"`. If true, it prints `bookmark.URL` and returns immediately. Verified passing with `TestDumpLeafURL`.
+
+### Bug 3: Silent Failure When `bookmark_bar` Is Absent
+- **Status:** Completed (commit `21a92d1`)
+- **Resolution:** Checked presence of `"bookmark_bar"` in `bookmarksFile.Roots` via comma-ok syntax; call `bail("No bookmark_bar found in bookmarks file", nil, 1)` if absent to avoid silent exit with empty output.
