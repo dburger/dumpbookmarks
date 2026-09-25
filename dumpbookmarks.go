@@ -59,9 +59,9 @@ func find(bookmark *bookmark, bookmarkPath []string) *bookmark {
 	if len(bookmarkPath) == 0 {
 		return bookmark
 	}
-	for _, child := range bookmark.Children {
-		if child.Name == bookmarkPath[0] {
-			return find(&child, bookmarkPath[1:])
+	for i := range bookmark.Children {
+		if bookmark.Children[i].Name == bookmarkPath[0] {
+			return find(&bookmark.Children[i], bookmarkPath[1:])
 		}
 	}
 	return nil
