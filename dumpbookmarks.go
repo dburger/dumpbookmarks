@@ -116,16 +116,16 @@ func main() {
 	}
 
 	bookmarkBar := bookmarksFile.Roots["bookmark_bar"]
-	bookmark := &bookmarkBar
+	bm := &bookmarkBar
 
 	if len(params.bookmarkPath) > 0 {
 		// If they specified a subtree, start there.
-		bookmark = find(bookmark, params.bookmarkPath)
+		bm = find(bm, params.bookmarkPath)
 	}
 
-	if bookmark == nil {
+	if bm == nil {
 		bail("Requested bookmarks not found.", nil, 1)
 	} else {
-		dump(bookmark, params.descend)
+		dump(bm, params.descend)
 	}
 }
