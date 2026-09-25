@@ -1,6 +1,6 @@
 # Audit & Improvement Plan for dumpbookmarks
 
-This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go) and [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile), detailing functional bugs, portability issues, code quality concerns, and build/testing improvements, along with proposed fixes.
+This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go) and [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile), detailing functional bugs, portability issues, code quality concerns, and build/testing improvements, along with proposed fixes and completed tasks.
 
 ---
 
@@ -13,13 +13,14 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
    - [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
    - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
 3. [Idiomatic Go & Code Quality](#3-idiomatic-go--code-quality)
-   - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
-   - [Issue 7: Variable Identifier Shadowing](#issue-7-variable-identifier-shadowing)
    - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
    - [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
 4. [Build System & Testing](#4-build-system--testing)
    - [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
    - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
+5. [Completed Tasks](#5-completed-tasks)
+   - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
+   - [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
 
 ---
 
@@ -115,31 +116,6 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ## 3. Idiomatic Go & Code Quality
 
-### Issue 6: Address of Loop Variable Copy in `find`
-
-* **File Location:** [`find`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L61-L63)
-* **Problem:** `for _, child := range bookmark.Children` creates a value copy of each slice element. Passing `&child` passes the memory address of the local copy rather than a reference into the slice elements, causing unnecessary heap allocations.
-* **Proposed Fix:** Use index-based iteration:
-  ```go
-  for i := range bookmark.Children {
-      if bookmark.Children[i].Name == bookmarkPath[0] {
-          return find(&bookmark.Children[i], bookmarkPath[1:])
-      }
-  }
-  ```
-
----
-
-### Issue 7: Variable Identifier Shadowing
-
-* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L91), [`main`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L118)
-* **Problem:**
-  - `filepath := flag.String(...)` shadows the imported standard package `path/filepath`.
-  - `bookmark := &bookmarkBar` shadows the type identifier [`bookmark`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L34-L39).
-* **Proposed Fix:** Rename `filepath` to `filename` and `bookmark` to `targetBookmark` or `b`.
-
----
-
 ### Issue 8: Built-in `println` and Error Formatting in `bail`
 
 * **File Location:** [`bail`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L47-L53)
@@ -223,3 +199,17 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
   - Behavior when `descend` is `true` vs `false`
   - Handling of non-existent bookmark paths
   - JSON decoding of Chrome bookmark schema fixtures
+
+---
+
+## 5. Completed Tasks
+
+### Issue 6: Address of Loop Variable Copy in `find`
+- **Status:** Completed (commit `f2e6b6b`)
+- **Resolution:** Replaced `for _, child := range bookmark.Children` with index-based iteration `for i := range bookmark.Children` passing `&bookmark.Children[i]`, avoiding local value copies and unnecessary heap escapes.
+
+### Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)
+- **Status:** Completed (commits `b699efe` and `468bf73`)
+- **Resolution:**
+  - Renamed the CLI flag variable and struct field from `filepath` to `filename` to eliminate shadowing of the standard library package `path/filepath`.
+  - Renamed the local variable in `main` from `bookmark` to `bm` to eliminate shadowing of the `bookmark` struct type.
