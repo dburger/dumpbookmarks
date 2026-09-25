@@ -1,54 +1,27 @@
 # Audit & Improvement Plan for dumpbookmarks
 
-This document contains a comprehensive audit of [main.go](file:///home/dburger/src/dumpbookmarks/main.go) and [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile), detailing functional bugs, portability issues, code quality concerns, and build/testing improvements, along with proposed fixes and completed tasks.
+This document contains a comprehensive audit of [main.go](file:///home/dburger/src/dumpbookmarks/main.go) and [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile), detailing functional bugs, portability issues, code quality concerns, and build/testing improvements, along with completed tasks.
 
 ---
 
-## Table of Contents
-1. [Functional Bugs & Logic Flaws](#1-functional-bugs--logic-flaws)
-   - [Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted](#bug-2-chrome-bookmarks-in-other-and-synced-roots-are-omitted)
-2. [Completed Tasks](#2-completed-tasks)
-   - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
-   - [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
-   - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
-   - [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
-   - [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
-   - [Source File Renaming (`main.go`)](#source-file-renaming-maingo)
-   - [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
-   - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
-   - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
-   - [Bug 1: Leaf Bookmark URL Nodes Not Dumped](#bug-1-leaf-bookmark-url-nodes-not-dumped)
-   - [Bug 3: Silent Failure When `bookmark_bar` Is Absent](#bug-3-silent-failure-when-bookmark_bar-is-absent)
+## Completed Tasks
+
+All identified issues from the audit have been successfully resolved and verified with tests:
+
+- [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
+- [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
+- [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
+- [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
+- [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
+- [Source File Renaming (`main.go`)](#source-file-renaming-maingo)
+- [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
+- [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
+- [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
+- [Bug 1: Leaf Bookmark URL Nodes Not Dumped](#bug-1-leaf-bookmark-url-nodes-not-dumped)
+- [Bug 3: Silent Failure When `bookmark_bar` Is Absent](#bug-3-silent-failure-when-bookmark_bar-is-absent)
+- [Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted](#bug-2-chrome-bookmarks-in-other-and-synced-roots-are-omitted)
 
 ---
-
-## 1. Functional Bugs & Logic Flaws
-
-### Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted
-
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L153-L157)
-* **Problem:** Google Chrome partitions bookmarks into three primary roots:
-  - `bookmark_bar` ("Bookmarks bar")
-  - `other` ("Other bookmarks")
-  - `synced` ("Mobile bookmarks")
-  
-  The current code hardcodes `bookmarksFile.Roots["bookmark_bar"]`. Bookmarks saved under "Other bookmarks" or mobile bookmarks are invisible, and specifying folder paths located under those roots fails.
-* **Proposed Fix:** Allow searching and dumping across all available roots when no specific path is given (or construct a virtual root containing all top-level roots):
-  ```go
-  virtualRoot := bookmark{
-      Name: "Roots",
-      Type: "folder",
-  }
-  for _, rootName := range []string{"bookmark_bar", "other", "synced"} {
-      if r, ok := bookmarksFile.Roots[rootName]; ok {
-          virtualRoot.Children = append(virtualRoot.Children, r)
-      }
-  }
-  ```
-
----
-
-## 2. Completed Tasks
 
 ### Issue 6: Address of Loop Variable Copy in `find`
 - **Status:** Completed (commit `f2e6b6b`)
@@ -96,4 +69,8 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ### Bug 3: Silent Failure When `bookmark_bar` Is Absent
 - **Status:** Completed (commit `21a92d1`)
-- **Resolution:** Checked presence of `"bookmark_bar"` in `bookmarksFile.Roots` via comma-ok syntax; call `bail("No bookmark_bar found in bookmarks file", nil, 1)` if absent to avoid silent exit with empty output.
+- **Resolution:** Checked presence of root key in `bookmarksFile.Roots` via comma-ok syntax; call `bail(...)` if absent to avoid silent exit with empty output.
+
+### Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted
+- **Status:** Completed (commit `0638da6`)
+- **Resolution:** Added `-root` flag (defaulting to `"bookmark_bar"`) to allow querying and dumping from other Chrome bookmark root sections like `"other"` ("Other bookmarks") and `"synced"` ("Mobile bookmarks"), completely avoiding namespace collisions.
