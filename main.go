@@ -150,7 +150,10 @@ func main() {
 		bail("Error unmarshalling bookmarks file, has the schema changed?", err, 1)
 	}
 
-	bookmarkBar := bookmarksFile.Roots["bookmark_bar"]
+	bookmarkBar, ok := bookmarksFile.Roots["bookmark_bar"]
+	if !ok {
+		bail("No bookmark_bar found in bookmarks file", nil, 1)
+	}
 	bm := &bookmarkBar
 
 	if len(params.bookmarkPath) > 0 {
