@@ -6,12 +6,9 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ## Table of Contents
 1. [Functional Bugs & Logic Flaws](#1-functional-bugs--logic-flaws)
-   - [Bug 1: Leaf Bookmark URL Nodes Not Dumped](#bug-1-leaf-bookmark-url-nodes-not-dumped)
    - [Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted](#bug-2-chrome-bookmarks-in-other-and-synced-roots-are-omitted)
    - [Bug 3: Silent Failure When `bookmark_bar` Is Absent](#bug-3-silent-failure-when-bookmark_bar-is-absent)
-2. [Testing](#2-testing)
-   - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
-3. [Completed Tasks](#3-completed-tasks)
+2. [Completed Tasks](#2-completed-tasks)
    - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
    - [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
    - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
@@ -20,38 +17,16 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
    - [Source File Renaming (`main.go`)](#source-file-renaming-maingo)
    - [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
    - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
+   - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
+   - [Bug 1: Leaf Bookmark URL Nodes Not Dumped](#bug-1-leaf-bookmark-url-nodes-not-dumped)
 
 ---
 
 ## 1. Functional Bugs & Logic Flaws
 
-### Bug 1: Leaf Bookmark URL Nodes Not Dumped
-
-* **File Location:** [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80)
-* **Problem:** If a user specifies a path that resolves directly to a bookmark URL instead of a folder (e.g., `dumpbookmarks recipes lasagna` or `dumpbookmarks Apps Squoosh`), [`find`](file:///home/dburger/src/dumpbookmarks/main.go#L57-L67) returns the matching leaf node. However, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80) only iterates over `bookmark.Children`. Because a leaf bookmark has no children, nothing is printed and the program exits with code 0.
-* **Proposed Fix:** Check whether `bookmark.Type == "url"` at the beginning of [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80):
-  ```go
-  func dump(b *bookmark, descend bool) {
-      if b.Type == "url" {
-          fmt.Println(b.URL)
-          return
-      }
-      for i := range b.Children {
-          child := &b.Children[i]
-          if child.Type == "url" {
-              fmt.Println(child.URL)
-          } else if descend {
-              dump(child, descend)
-          }
-      }
-  }
-  ```
-
----
-
 ### Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L147-L148)
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L151-L152)
 * **Problem:** Google Chrome partitions bookmarks into three primary roots:
   - `bookmark_bar` ("Bookmarks bar")
   - `other` ("Other bookmarks")
@@ -75,8 +50,8 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ### Bug 3: Silent Failure When `bookmark_bar` Is Absent
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L147-L155)
-* **Problem:** In Go, accessing a missing map key (`bookmarksFile.Roots["bookmark_bar"]`) yields the zero-value [`bookmark`](file:///home/dburger/src/dumpbookmarks/main.go#L34-L40). Taking its address (`&bookmarkBar`) produces a non-nil pointer. When no arguments are supplied, the `if bm == nil` check passes, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80) iterates over empty children, and the command exits 0 without indicating that the root was missing.
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L151-L159)
+* **Problem:** In Go, accessing a missing map key (`bookmarksFile.Roots["bookmark_bar"]`) yields the zero-value [`bookmark`](file:///home/dburger/src/dumpbookmarks/main.go#L34-L40). Taking its address (`&bookmarkBar`) produces a non-nil pointer. When no arguments are supplied, the `if bm == nil` check passes, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L84) iterates over empty children, and the command exits 0 without indicating that the root was missing.
 * **Proposed Fix:** Check map existence:
   ```go
   bookmarkBar, ok := bookmarksFile.Roots["bookmark_bar"]
@@ -87,21 +62,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ---
 
-## 2. Testing
-
-### Issue 11: Missing Automated Tests
-
-* **Problem:** The repository has no test files (`[no test files]`).
-* **Proposed Fix:** Add `main_test.go` covering:
-  - Traversal with [`find`](file:///home/dburger/src/dumpbookmarks/main.go#L57-L67) for single and multi-level paths
-  - Dumping individual URL leaf nodes
-  - Behavior when `descend` is `true` vs `false`
-  - Handling of non-existent bookmark paths
-  - JSON decoding of Chrome bookmark schema fixtures
-
----
-
-## 3. Completed Tasks
+## 2. Completed Tasks
 
 ### Issue 6: Address of Loop Variable Copy in `find`
 - **Status:** Completed (commit `f2e6b6b`)
@@ -138,3 +99,11 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 ### Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)
 - **Status:** Completed (commit `d5e5814`)
 - **Resolution:** In `defaultBookmarksPath()`, sequentially check candidate filenames (`AccountBookmarks`, then `Bookmarks`), returning the first that exists on disk and falling back cleanly if neither is present.
+
+### Issue 11: Missing Automated Tests
+- **Status:** Completed (commits `3f1cbd1` and `2cc61a0`)
+- **Resolution:** Added automated test suite in `main_test.go` and test fixture in `testdata/bookmarks.json` covering path resolution with `find()`, subtree vs leaf URL dumping with `dump()`, `-descend` behavior, JSON unmarshaling, and default path resolution.
+
+### Bug 1: Leaf Bookmark URL Nodes Not Dumped
+- **Status:** Completed (commit `c884d36`)
+- **Resolution:** Added an initial check in `dump()` for `bookmark.Type == "url"`. If true, it prints `bookmark.URL` and returns immediately. Verified passing with `TestDumpLeafURL`.
