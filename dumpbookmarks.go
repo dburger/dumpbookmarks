@@ -33,15 +33,15 @@ type params struct {
 
 // bookmark is a chrome bookmark or folder with an array of child bookmark.
 type bookmark struct {
-	Name     string
-	Type     string
-	Url      string
-	Children []bookmark
+	Name     string     `json:"name"`
+	Type     string     `json:"type"`
+	URL      string     `json:"url"`
+	Children []bookmark `json:"children"`
 }
 
 // bookmarks holds the entire bookmarks data structure.
 type bookmarks struct {
-	Roots map[string]bookmark
+	Roots map[string]bookmark `json:"roots"`
 }
 
 // bail is used to print an error to stderr and exit the program.
@@ -73,7 +73,7 @@ func find(bookmark *bookmark, bookmarkPath []string) *bookmark {
 func dump(bookmark *bookmark, descend bool) {
 	for _, child := range bookmark.Children {
 		if child.Type == "url" {
-			fmt.Println(child.Url)
+			fmt.Println(child.URL)
 		} else if descend {
 			dump(&child, descend)
 		}
