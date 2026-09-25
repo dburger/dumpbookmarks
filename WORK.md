@@ -9,18 +9,17 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
    - [Bug 1: Leaf Bookmark URL Nodes Not Dumped](#bug-1-leaf-bookmark-url-nodes-not-dumped)
    - [Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted](#bug-2-chrome-bookmarks-in-other-and-synced-roots-are-omitted)
    - [Bug 3: Silent Failure When `bookmark_bar` Is Absent](#bug-3-silent-failure-when-bookmark_bar-is-absent)
-2. [Portability & File Resolution](#2-portability--file-resolution)
-   - [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
-   - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
-3. [Testing](#3-testing)
+2. [Testing](#2-testing)
    - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
-4. [Completed Tasks](#4-completed-tasks)
+3. [Completed Tasks](#3-completed-tasks)
    - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
    - [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
    - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
    - [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
    - [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
    - [Source File Renaming (`main.go`)](#source-file-renaming-maingo)
+   - [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
+   - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
 
 ---
 
@@ -52,7 +51,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ### Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L118-L119)
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L147-L148)
 * **Problem:** Google Chrome partitions bookmarks into three primary roots:
   - `bookmark_bar` ("Bookmarks bar")
   - `other` ("Other bookmarks")
@@ -76,7 +75,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ### Bug 3: Silent Failure When `bookmark_bar` Is Absent
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L118-L126)
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L147-L155)
 * **Problem:** In Go, accessing a missing map key (`bookmarksFile.Roots["bookmark_bar"]`) yields the zero-value [`bookmark`](file:///home/dburger/src/dumpbookmarks/main.go#L34-L40). Taking its address (`&bookmarkBar`) produces a non-nil pointer. When no arguments are supplied, the `if bm == nil` check passes, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80) iterates over empty children, and the command exits 0 without indicating that the root was missing.
 * **Proposed Fix:** Check map existence:
   ```go
@@ -88,33 +87,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ---
 
-## 2. Portability & File Resolution
-
-### Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds
-
-* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/main.go#L89)
-* **Problem:** [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile#L8-L9) provides a Windows build target (`bin/dumpbookmarks.exe`). However, the default file path is hardcoded as:
-  ```go
-  filepath.Join(homedir, ".config/google-chrome/Default/AccountBookmarks")
-  ```
-  On Windows and macOS, this Linux path does not exist.
-* **Proposed Fix:** Determine default paths based on `runtime.GOOS`:
-  - **Linux:** `~/.config/google-chrome/Default/`
-  - **Darwin (macOS):** `~/Library/Application Support/Google/Chrome/Default/`
-  - **Windows:** `%LOCALAPPDATA%\Google\Chrome\User Data\Default\` (via `os.Getenv("LOCALAPPDATA")`)
-
----
-
-### Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)
-
-* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/main.go#L89)
-* **Problem:** Chrome only writes to `AccountBookmarks` when account-based bookmark storage is active. Standard installations and local profiles use `Bookmarks`. If `AccountBookmarks` is missing, the tool immediately exits with an error:
-  `Error reading bookmarks file: open ...: no such file or directory`.
-* **Proposed Fix:** Check candidate file names in order of preference (e.g. `AccountBookmarks`, then `Bookmarks`) and pick the first that exists.
-
----
-
-## 3. Testing
+## 2. Testing
 
 ### Issue 11: Missing Automated Tests
 
@@ -128,7 +101,7 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 
 ---
 
-## 4. Completed Tasks
+## 3. Completed Tasks
 
 ### Issue 6: Address of Loop Variable Copy in `find`
 - **Status:** Completed (commit `f2e6b6b`)
@@ -157,3 +130,11 @@ This document contains a comprehensive audit of [main.go](file:///home/dburger/s
 ### Source File Renaming (`main.go`)
 - **Status:** Completed (commit `d972c6f`)
 - **Resolution:** Renamed `dumpbookmarks.go` to `main.go` per Go conventions for standalone single-package executable applications, and updated documentation examples to use `go run .`.
+
+### Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds
+- **Status:** Completed (commit `d5e5814`)
+- **Resolution:** Introduced `defaultBookmarksPath()` which inspects `runtime.GOOS` to construct the correct Chrome profile directory for Linux (`~/.config/google-chrome/Default`), macOS (`~/Library/Application Support/Google/Chrome/Default`), and Windows (`%LOCALAPPDATA%\Google\Chrome\User Data\Default`).
+
+### Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)
+- **Status:** Completed (commit `d5e5814`)
+- **Resolution:** In `defaultBookmarksPath()`, sequentially check candidate filenames (`AccountBookmarks`, then `Bookmarks`), returning the first that exists on disk and falling back cleanly if neither is present.
