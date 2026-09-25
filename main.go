@@ -1,18 +1,18 @@
 /*
 Program to dump chrome bookmarks to stdout. Without arguments:
 
-$ go run dumpbookmarks.go
+$ go run .
 
 and all bookmarks will be dumped. To specify only a certain subtree
 of bookmarks, provide the folder names down to that path, for example:
 
-$ go run dumpbookmarks.go recipes italian
+$ go run . recipes italian
 
 This will dump the bookmarks starting at the recipes -> italian folder.
 To only dump bookmarks at the specified level, without descending into
 subfolders, pass the descend flag.
 
-$ go run dumpbookmarks.go -descend=false
+$ go run . -descend=false
 */
 package main
 
