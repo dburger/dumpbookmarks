@@ -1,3 +1,5 @@
+.PHONY: build buildl buildw runl runw clean
+
 SRC = $(wildcard *.go)  $(wildcard **/*.go)
 
 bin/dumpbookmarks: $(SRC)
