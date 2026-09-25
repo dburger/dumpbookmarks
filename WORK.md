@@ -1,6 +1,6 @@
 # Audit & Improvement Plan for dumpbookmarks
 
-This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go) and [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile), detailing functional bugs, portability issues, code quality concerns, and build/testing improvements, along with proposed fixes and completed tasks.
+This document contains a comprehensive audit of [main.go](file:///home/dburger/src/dumpbookmarks/main.go) and [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile), detailing functional bugs, portability issues, code quality concerns, and build/testing improvements, along with proposed fixes and completed tasks.
 
 ---
 
@@ -12,15 +12,14 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 2. [Portability & File Resolution](#2-portability--file-resolution)
    - [Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds](#bug-4-hardcoded-linux-path-breaks-cross-platform-builds)
    - [Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)](#bug-5-brittle-file-selection-accountbookmarks-vs-bookmarks)
-3. [Idiomatic Go & Code Quality](#3-idiomatic-go--code-quality)
-   - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
-   - [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
-4. [Build System & Testing](#4-build-system--testing)
-   - [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
+3. [Testing](#3-testing)
    - [Issue 11: Missing Automated Tests](#issue-11-missing-automated-tests)
-5. [Completed Tasks](#5-completed-tasks)
+4. [Completed Tasks](#4-completed-tasks)
    - [Issue 6: Address of Loop Variable Copy in `find`](#issue-6-address-of-loop-variable-copy-in-find)
    - [Issue 7: Variable Identifier Shadowing (`filepath` and `bookmark`)](#issue-7-variable-identifier-shadowing-filepath-and-bookmark)
+   - [Issue 8: Built-in `println` and Error Formatting in `bail`](#issue-8-built-in-println-and-error-formatting-in-bail)
+   - [Issue 9: Missing Struct JSON Tags and Naming Convention](#issue-9-missing-struct-json-tags-and-naming-convention)
+   - [Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile](#issue-10-missing-phony-and-invalid-globbing-in-makefile)
 
 ---
 
@@ -28,19 +27,19 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ### Bug 1: Leaf Bookmark URL Nodes Not Dumped
 
-* **File Location:** [`dump`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L71-L79)
-* **Problem:** If a user specifies a path that resolves directly to a bookmark URL instead of a folder (e.g., `dumpbookmarks recipes lasagna` or `dumpbookmarks Apps Squoosh`), [`find`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L57-L67) returns the matching leaf node. However, [`dump`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L71-L79) only iterates over `bookmark.Children`. Because a leaf bookmark has no children, nothing is printed and the program exits with code 0.
-* **Proposed Fix:** Check whether `bookmark.Type == "url"` at the beginning of [`dump`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L71-L79):
+* **File Location:** [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80)
+* **Problem:** If a user specifies a path that resolves directly to a bookmark URL instead of a folder (e.g., `dumpbookmarks recipes lasagna` or `dumpbookmarks Apps Squoosh`), [`find`](file:///home/dburger/src/dumpbookmarks/main.go#L57-L67) returns the matching leaf node. However, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80) only iterates over `bookmark.Children`. Because a leaf bookmark has no children, nothing is printed and the program exits with code 0.
+* **Proposed Fix:** Check whether `bookmark.Type == "url"` at the beginning of [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80):
   ```go
   func dump(b *bookmark, descend bool) {
       if b.Type == "url" {
-          fmt.Println(b.Url)
+          fmt.Println(b.URL)
           return
       }
       for i := range b.Children {
           child := &b.Children[i]
           if child.Type == "url" {
-              fmt.Println(child.Url)
+              fmt.Println(child.URL)
           } else if descend {
               dump(child, descend)
           }
@@ -52,7 +51,7 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ### Bug 2: Chrome Bookmarks in `other` and `synced` Roots Are Omitted
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L117-L118)
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L118-L119)
 * **Problem:** Google Chrome partitions bookmarks into three primary roots:
   - `bookmark_bar` ("Bookmarks bar")
   - `other` ("Other bookmarks")
@@ -76,8 +75,8 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ### Bug 3: Silent Failure When `bookmark_bar` Is Absent
 
-* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L117-L125)
-* **Problem:** In Go, accessing a missing map key (`bookmarksFile.Roots["bookmark_bar"]`) yields the zero-value [`bookmark`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L34-L39). Taking its address (`&bookmarkBar`) produces a non-nil pointer. When no arguments are supplied, the `if bookmark == nil` check passes, [`dump`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L71-L79) iterates over empty children, and the command exits 0 without indicating that the root was missing.
+* **File Location:** [`main`](file:///home/dburger/src/dumpbookmarks/main.go#L118-L126)
+* **Problem:** In Go, accessing a missing map key (`bookmarksFile.Roots["bookmark_bar"]`) yields the zero-value [`bookmark`](file:///home/dburger/src/dumpbookmarks/main.go#L34-L40). Taking its address (`&bookmarkBar`) produces a non-nil pointer. When no arguments are supplied, the `if bm == nil` check passes, [`dump`](file:///home/dburger/src/dumpbookmarks/main.go#L72-L80) iterates over empty children, and the command exits 0 without indicating that the root was missing.
 * **Proposed Fix:** Check map existence:
   ```go
   bookmarkBar, ok := bookmarksFile.Roots["bookmark_bar"]
@@ -92,8 +91,8 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ### Bug 4: Hardcoded Linux Path Breaks Cross-Platform Builds
 
-* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L88)
-* **Problem:** [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile#L6-L7) provides a Windows build target (`bin/dumpbookmarks.exe`). However, the default file path is hardcoded as:
+* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/main.go#L89)
+* **Problem:** [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile#L8-L9) provides a Windows build target (`bin/dumpbookmarks.exe`). However, the default file path is hardcoded as:
   ```go
   filepath.Join(homedir, ".config/google-chrome/Default/AccountBookmarks")
   ```
@@ -107,94 +106,20 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ### Bug 5: Brittle File Selection (`AccountBookmarks` vs `Bookmarks`)
 
-* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L88)
+* **File Location:** [`parseFlags`](file:///home/dburger/src/dumpbookmarks/main.go#L89)
 * **Problem:** Chrome only writes to `AccountBookmarks` when account-based bookmark storage is active. Standard installations and local profiles use `Bookmarks`. If `AccountBookmarks` is missing, the tool immediately exits with an error:
   `Error reading bookmarks file: open ...: no such file or directory`.
 * **Proposed Fix:** Check candidate file names in order of preference (e.g. `AccountBookmarks`, then `Bookmarks`) and pick the first that exists.
 
 ---
 
-## 3. Idiomatic Go & Code Quality
-
-### Issue 8: Built-in `println` and Error Formatting in `bail`
-
-* **File Location:** [`bail`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L47-L53)
-* **Problem:** Built-in `println` is a Go bootstrapping primitive not intended for production application code. In addition, printing errors across two separate lines with trailing colons results in unformatted stderr output.
-* **Proposed Fix:** Use standard library `fmt.Fprintf`:
-  ```go
-  func bail(msg string, err error, exitCode int) {
-      if err != nil {
-          fmt.Fprintf(os.Stderr, "%s: %v\n", msg, err)
-      } else {
-          fmt.Fprintln(os.Stderr, msg)
-      }
-      os.Exit(exitCode)
-  }
-  ```
-
----
-
-### Issue 9: Missing Struct JSON Tags and Naming Convention
-
-* **File Location:** [`bookmark`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L34-L39), [`bookmarks`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L42-L44)
-* **Problem:** Fields currently rely on case-insensitive unmarshaling. In Go, initialisms should be capitalized (`URL` instead of `Url`), and fields should be explicitly tagged with JSON keys.
-* **Proposed Fix:**
-  ```go
-  type bookmark struct {
-      Name     string     `json:"name"`
-      Type     string     `json:"type"`
-      URL      string     `json:"url"`
-      Children []bookmark `json:"children"`
-  }
-
-  type bookmarks struct {
-      Roots map[string]bookmark `json:"roots"`
-  }
-  ```
-
----
-
-## 4. Build System & Testing
-
-### Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile
-
-* **File Location:** [Makefile](file:///home/dburger/src/dumpbookmarks/Makefile#L1-L18)
-* **Problem:**
-  - Build targets (`build`, `buildl`, `buildw`, `runl`, `runw`, `clean`) lack `.PHONY` declarations.
-  - `$(wildcard **/*.go)` does not recurse in standard GNU Make.
-* **Proposed Fix:** Add `.PHONY` and refine source discovery:
-  ```makefile
-  .PHONY: all build buildl buildw runl runw clean test
-
-  SRC = $(shell find . -name '*.go')
-
-  bin/dumpbookmarks: $(SRC)
-  	GOOS=linux GOARCH=amd64 go build -o bin/dumpbookmarks
-
-  bin/dumpbookmarks.exe: $(SRC)
-  	GOOS=windows GOARCH=amd64 go build -o bin/dumpbookmarks.exe
-
-  buildl: bin/dumpbookmarks
-  buildw: bin/dumpbookmarks.exe
-  build: buildl buildw
-
-  test:
-  	go test -v ./...
-
-  runl: buildl
-  	./bin/dumpbookmarks
-
-  clean:
-  	rm -rf ./bin
-  ```
-
----
+## 3. Testing
 
 ### Issue 11: Missing Automated Tests
 
 * **Problem:** The repository has no test files (`[no test files]`).
 * **Proposed Fix:** Add `dumpbookmarks_test.go` covering:
-  - Traversal with [`find`](file:///home/dburger/src/dumpbookmarks/dumpbookmarks.go#L57-L67) for single and multi-level paths
+  - Traversal with [`find`](file:///home/dburger/src/dumpbookmarks/main.go#L57-L67) for single and multi-level paths
   - Dumping individual URL leaf nodes
   - Behavior when `descend` is `true` vs `false`
   - Handling of non-existent bookmark paths
@@ -202,7 +127,7 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 
 ---
 
-## 5. Completed Tasks
+## 4. Completed Tasks
 
 ### Issue 6: Address of Loop Variable Copy in `find`
 - **Status:** Completed (commit `f2e6b6b`)
@@ -213,3 +138,17 @@ This document contains a comprehensive audit of [dumpbookmarks.go](file:///home/
 - **Resolution:**
   - Renamed the CLI flag variable and struct field from `filepath` to `filename` to eliminate shadowing of the standard library package `path/filepath`.
   - Renamed the local variable in `main` from `bookmark` to `bm` to eliminate shadowing of the `bookmark` struct type.
+
+### Issue 8: Built-in `println` and Error Formatting in `bail`
+- **Status:** Completed (commit `c9bd10a`)
+- **Resolution:** Replaced built-in `println` with `fmt.Fprintf(os.Stderr, ...)` for error messages and cleaned up trailing colons at all call sites so errors output cleanly on a single line.
+
+### Issue 9: Missing Struct JSON Tags and Naming Convention
+- **Status:** Completed (commit `074cf7e`)
+- **Resolution:** Added explicit JSON field tags (`json:"name"`, `json:"type"`, `json:"url"`, `json:"children"`, `json:"roots"`) to `bookmark` and `bookmarks` structs, and renamed `Url` to `URL` to follow Go conventions for initialisms.
+
+### Issue 10: Missing `.PHONY` and Invalid Globbing in Makefile
+- **Status:** Completed (commits `364a8f9` and `8e6e7ba`)
+- **Resolution:**
+  - Added `.PHONY: build buildl buildw runl runw clean` to ensure phony targets execute reliably regardless of filesystem state.
+  - Simplified `SRC` from `$(wildcard *.go) $(wildcard **/*.go)` to `$(wildcard *.go)` since GNU Make's `wildcard` does not do recursive `**` expansion, and the project sources are in the root directory.
