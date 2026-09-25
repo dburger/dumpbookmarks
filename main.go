@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 )
 
 // params holds the parsed command line parameters.
@@ -80,17 +81,46 @@ func dump(bookmark *bookmark, descend bool) {
 	}
 }
 
-// parseFlags parses command line arguments and returns params.
-func parseFlags() params {
+// defaultBookmarksPath returns the first existing Chrome bookmarks file
+// from candidate filenames in the user's default Chrome profile across supported OSes.
+func defaultBookmarksPath() string {
 	homedir, err := os.UserHomeDir()
 	if err != nil {
 		bail("Unable to determine user's home directory", err, 1)
 	}
 
-	defaultpath := filepath.Join(homedir, ".config/google-chrome/Default/AccountBookmarks")
+	var baseDir string
+	switch runtime.GOOS {
+	case "darwin":
+		baseDir = filepath.Join(homedir, "Library", "Application Support", "Google", "Chrome", "Default")
+	case "windows":
+		localAppData := os.Getenv("LOCALAPPDATA")
+		if localAppData == "" {
+			localAppData = filepath.Join(homedir, "AppData", "Local")
+		}
+		baseDir = filepath.Join(localAppData, "Google", "Chrome", "User Data", "Default")
+	default: // "linux" and other unix-like systems
+		baseDir = filepath.Join(homedir, ".config", "google-chrome", "Default")
+	}
+
+	// Prefer AccountBookmarks if present, otherwise fall back to standard Bookmarks.
+	candidates := []string{"AccountBookmarks", "Bookmarks"}
+	for _, candidate := range candidates {
+		path := filepath.Join(baseDir, candidate)
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+
+	return filepath.Join(baseDir, "AccountBookmarks")
+}
+
+// parseFlags parses command line arguments and returns params.
+func parseFlags() params {
+	defaultPath := defaultBookmarksPath()
 
 	descend := flag.Bool("descend", true, "descend to subfolders")
-	filename := flag.String("filename", defaultpath, "name of chrome bookmarks file to process")
+	filename := flag.String("filename", defaultPath, "name of chrome bookmarks file to process")
 
 	flag.Parse()
 
